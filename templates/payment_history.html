@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-lg-8 mx-auto text-center">
+            <h1 class="display-4 mb-3">Payment History</h1>
+            <p class="lead text-muted">View all your parking payment transactions</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <!-- Search and Filter -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <form id="filterForm" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Search by Spot ID</label>
+                            <input type="text" class="form-control" id="spotFilter" placeholder="e.g., a1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Date Range</label>
+                            <select class="form-select" id="dateFilter">
+                                <option value="all">All Time</option>
+                                <option value="today">Today</option>
+                                <option value="week">This Week</option>
+                                <option value="month">This Month</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search me-2"></i>Filter Results
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Payment Records -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="mb-0">Transaction History</h5>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-outline-primary btn-sm" onclick="exportToCSV()">
+                                <i class="fas fa-download me-2"></i>Export to CSV
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Transaction ID</th>
+                                <th>Spot ID</th>
+                                <th>Amount</th>
+                                <th>Duration</th>
+                                <th>Payment Time</th>
+                                <th>Card Info</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentRecords">
+                            {% for payment in payments %}
+                            <tr>
+                                <td>{{ payment.transaction_id }}</td>
+                                <td>{{ payment.spot_id }}</td>
+                                <td>₹{{ payment.amount }}</td>
+                                <td>{{ payment.duration }} seconds</td>
+                                <td>{{ payment.payment_time }}</td>
+                                <td>**** **** **** {{ payment.card_number }}</td>
+                                <td>
+                                    <span class="badge bg-success">Paid</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if not payments %}
+                <div class="text-center py-5">
+                    <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No payment records found</h5>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('filterForm');
+    const spotFilter = document.getElementById('spotFilter');
+    const dateFilter = document.getElementById('dateFilter');
+
+    filterForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        try {
+            const response = await fetch(`/api/payments?spot=${spotFilter.value}&date=${dateFilter.value}`);
+            const data = await response.json();
+            
+            const tbody = document.getElementById('paymentRecords');
+            tbody.innerHTML = data.payments.map(payment => `
+                <tr>
+                    <td>${payment.transaction_id}</td>
+                    <td>${payment.spot_id}</td>
+                    <td>₹${payment.amount}</td>
+                    <td>${payment.duration} seconds</td>
+                    <td>${payment.payment_time}</td>
+                    <td>**** **** **** ${payment.card_number}</td>
+                    <td>
+                        <span class="badge bg-success">Paid</span>
+                    </td>
+                </tr>
+            `).join('') || `
+                <tr>
+                    <td colspan="7" class="text-center py-5">
+                        <i class="fas fa-receipt fa-3x text-muted mb-3 d-block"></i>
+                        <h5 class="text-muted">No payment records found</h5>
+                    </td>
+                </tr>
+            `;
+        } catch (error) {
+            console.error('Error fetching payment records:', error);
+            alert('Error fetching payment records. Please try again.');
+        }
+    });
+});
+
+function exportToCSV() {
+    const table = document.querySelector('table');
+    const rows = Array.from(table.querySelectorAll('tr'));
+    
+    const csvContent = rows.map(row => {
+        return Array.from(row.cells)
+            .map(cell => cell.textContent.trim())
+            .join(',');
+    }).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payment_history_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

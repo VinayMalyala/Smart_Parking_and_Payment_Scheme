@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white py-3">
+                    <h4 class="mb-0">Payment Gateway</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Order Summary -->
+                    <div class="border-bottom pb-3 mb-4">
+                        <h5 class="text-muted mb-3">Order Summary</h5>
+                        <div class="row">
+                            <div class="col-6">
+                                <p class="mb-1">Parking Spot</p>
+                                <h5>{{ spot_id }}</h5>
+                            </div>
+                            <div class="col-6">
+                                <p class="mb-1">Duration</p>
+                                <h5>{{ duration }} seconds</h5>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-6">
+                                <p class="mb-1">Amount to Pay</p>
+                                <h3 class="text-primary">₹{{ amount }}</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Form -->
+                    <form id="paymentForm" class="needs-validation" novalidate>
+                        <input type="hidden" id="spot_id" value="{{ spot_id }}">
+                        
+                        <!-- Card Number -->
+                        <div class="mb-4">
+                            <label class="form-label">Card Number</label>
+                            <div class="input-group">
+                                <input type="text" id="card_number" class="form-control" placeholder="1234 5678 9012 3456" required
+                                       pattern="\d{4}\s?\d{4}\s?\d{4}\s?\d{4}">
+                                <span class="input-group-text">
+                                    <i class="fas fa-credit-card"></i>
+                                </span>
+                            </div>
+                            <div class="invalid-feedback">
+                                Please enter a valid card number
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Expiry Date -->
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label">Expiry Date</label>
+                                <input type="text" id="expiry" class="form-control" placeholder="MM/YY" required
+                                       pattern="(0[1-9]|1[0-2])\/([0-9]{2})">
+                                <div class="invalid-feedback">
+                                    Please enter a valid expiry date (MM/YY)
+                                </div>
+                            </div>
+
+                            <!-- CVV -->
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label">CVV</label>
+                                <input type="text" id="cvv" class="form-control" placeholder="123" required
+                                       pattern="\d{3,4}">
+                                <div class="invalid-feedback">
+                                    Please enter a valid CVV
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card Holder Name -->
+                        <div class="mb-4">
+                            <label class="form-label">Card Holder Name</label>
+                            <input type="text" id="name" class="form-control" placeholder="John Doe" required>
+                            <div class="invalid-feedback">
+                                Please enter the card holder's name
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn btn-primary btn-lg w-100" id="payButton">
+                            <i class="fas fa-lock me-2"></i>Pay ₹{{ amount }}
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Payment Methods -->
+            <div class="text-center mt-4">
+                <p class="text-muted mb-2">Secured Payment Methods</p>
+                <div class="payment-methods">
+                    <i class="fab fa-cc-visa fa-2x mx-2"></i>
+                    <i class="fab fa-cc-mastercard fa-2x mx-2"></i>
+                    <i class="fab fa-cc-amex fa-2x mx-2"></i>
+                    <i class="fab fa-cc-discover fa-2x mx-2"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Payment Successful</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-check-circle text-success fa-4x mb-3"></i>
+                        <h4>Thank you for your payment!</h4>
+                    </div>
+                    <div id="receiptDetails">
+                        <!-- Receipt details will be inserted here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="{{ url_for('video_analysis') }}" class="btn btn-primary">Back to Analysis</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('paymentForm');
+    const cardNumber = document.getElementById('card_number');
+    const expiry = document.getElementById('expiry');
+    const cvv = document.getElementById('cvv');
+    
+    // Format card number
+    cardNumber.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 16) value = value.slice(0, 16);
+        let formattedValue = '';
+        for (let i = 0; i < value.length; i++) {
+            if (i > 0 && i % 4 === 0) formattedValue += ' ';
+            formattedValue += value[i];
+        }
+        e.target.value = formattedValue;
+    });
+
+    // Format expiry date
+    expiry.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 4) value = value.slice(0, 4);
+        if (value.length > 2) {
+            value = value.slice(0, 2) + '/' + value.slice(2);
+        }
+        e.target.value = value;
+    });
+
+    // Format CVV
+    cvv.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 4) value = value.slice(0, 4);
+        e.target.value = value;
+    });
+
+    // Handle form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        if (!form.checkValidity()) {
+            e.stopPropagation();
+            form.classList.add('was-validated');
+            return;
+        }
+
+        const payButton = document.getElementById('payButton');
+        payButton.disabled = true;
+        payButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+
+        try {
+            const response = await fetch('/process-payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    spot_id: document.getElementById('spot_id').value,
+                    card_number: cardNumber.value,
+                    expiry: expiry.value,
+                    cvv: cvv.value,
+                    name: document.getElementById('name').value
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Show success modal with receipt
+                const receipt = result.receipt;
+                document.getElementById('receiptDetails').innerHTML = `
+                    <div class="card">
+                        <div class="card-body">
+                            <p class="mb-2"><strong>Spot ID:</strong> ${receipt.spot_id}</p>
+                            <p class="mb-2"><strong>Amount Paid:</strong> ₹${receipt.amount}</p>
+                            <p class="mb-2"><strong>Duration:</strong> ${receipt.duration} seconds</p>
+                            <p class="mb-0"><strong>Payment Time:</strong> ${receipt.payment_time}</p>
+                        </div>
+                    </div>`;
+                
+                const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                successModal.show();
+            } else {
+                alert('Payment failed: ' + result.error);
+            }
+        } catch (error) {
+            alert('Error processing payment: ' + error.message);
+        } finally {
+            payButton.disabled = false;
+            payButton.innerHTML = '<i class="fas fa-lock me-2"></i>Pay ₹{{ amount }}';
+        }
+    });
+});
+</script>
+{% endblock %}

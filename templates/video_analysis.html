@@ -1,0 +1,460 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-5">
+        <div class="col-lg-8 mx-auto text-center">
+            <h1 class="display-4 mb-4">Video Analysis</h1>
+            <p class="lead text-muted">Upload a parking lot video for real-time space detection and billing analysis.</p>
+        </div>
+    </div>
+
+    <div class="row justify-content-center mb-5">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <form id="videoForm" class="text-center">
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-center">
+                                <div class="upload-area p-4 border rounded" style="min-width: 300px;">
+                                    <i class="fas fa-video fa-3x text-primary mb-3"></i>
+                                    <h5>Drop your video here</h5>
+                                    <p class="text-muted">or</p>
+                                    <input type="file" name="video" id="video-input" class="d-none" accept="video/*" required>
+                                    <label for="video-input" class="btn btn-primary">Choose Video</label>
+                                    <p class="mt-2 text-muted small">Supported formats: MP4, AVI, MOV</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg px-4">
+                            <i class="fas fa-play me-2"></i>Start Analysis
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="results" class="row" style="display: none;">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Analysis Results</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Parking Space Status</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="status-output" class="overflow-auto" style="max-height: 300px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Billing Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="billing-output" class="overflow-auto" style="max-height: 300px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="text-center" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Processing video... This may take a few minutes.</p>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal fade" id="paymentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Payment Gateway</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-7">
+                            <!-- Card Payment Form -->
+                            <div class="card shadow-sm mb-3 mb-md-0">
+                                <div class="card-body">
+                                    <h5 class="card-title mb-4">Card Payment</h5>
+                                    <form id="paymentForm" class="needs-validation" novalidate>
+                                        <input type="hidden" id="spot_id" value="">
+                                        
+                                        <!-- Card Number -->
+                                        <div class="mb-3">
+                                            <label class="form-label">Card Number</label>
+                                            <div class="input-group">
+                                                <input type="text" id="card_number" class="form-control" placeholder="1234 5678 9012 3456" required
+                                                       pattern="\d{4}\s?\d{4}\s?\d{4}\s?\d{4}">
+                                                <span class="input-group-text">
+                                                    <i class="fas fa-credit-card"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div class="row">
+                                            <!-- Expiry Date -->
+                                            <div class="col-6 mb-3">
+                                                <label class="form-label">Expiry Date</label>
+                                                <input type="text" id="expiry" class="form-control" placeholder="MM/YY" required
+                                                       pattern="(0[1-9]|1[0-2])\/([0-9]{2})">
+                                            </div>
+
+                                            <!-- CVV -->
+                                            <div class="col-6 mb-3">
+                                                <label class="form-label">CVV</label>
+                                                <input type="text" id="cvv" class="form-control" placeholder="123" required
+                                                       pattern="\d{3,4}">
+                                            </div>
+                                        </div>
+
+                                        <!-- Card Holder Name -->
+                                        <div class="mb-4">
+                                            <label class="form-label">Card Holder Name</label>
+                                            <input type="text" id="name" class="form-control" placeholder="John Doe" required>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary w-100" id="payButton">
+                                            <i class="fas fa-lock me-2"></i>Pay <span id="payAmount"></span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-5">
+                            <!-- Order Summary and QR Code -->
+                            <div class="card shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="card-title mb-4">Order Summary</h5>
+                                    <div id="orderSummary" class="mb-4">
+                                        <!-- Order details will be inserted here -->
+                                    </div>
+                                    
+                                    <div class="text-center">
+                                        <h6 class="mb-3">Scan to Pay</h6>
+                                        <div id="qrcode" class="mb-3">
+                                            <!-- QR code will be inserted here -->
+                                        </div>
+                                        <small class="text-muted">Use your banking app to scan and pay</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Payment Successful</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <i class="fas fa-check-circle text-success fa-4x mb-3"></i>
+                    <h4 class="mb-4">Thank you for your payment!</h4>
+                    <div id="receiptDetails" class="text-start">
+                        <!-- Receipt details will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add QR Code library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropArea = document.querySelector('.upload-area');
+    const fileInput = document.getElementById('video-input');
+    const form = document.getElementById('videoForm');
+    const loading = document.getElementById('loading');
+    const results = document.getElementById('results');
+    const statusOutput = document.getElementById('status-output');
+    const billingOutput = document.getElementById('billing-output');
+
+    // Drag and drop handling
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+    });
+
+    function highlight(e) {
+        dropArea.classList.add('border-primary');
+    }
+
+    function unhighlight(e) {
+        dropArea.classList.remove('border-primary');
+    }
+
+    dropArea.addEventListener('drop', handleDrop, false);
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        fileInput.files = files;
+    }
+
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData();
+        formData.append('video', fileInput.files[0]);
+
+        loading.style.display = 'block';
+        results.style.display = 'none';
+        
+        try {
+            const response = await fetch('/process-video', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Process and display results
+                const statusLines = [];
+                const billingLines = [];
+                
+                data.text_output.forEach(line => {
+                    if (line.includes('Bill=')) {
+                        billingLines.push(line);
+                    } else {
+                        statusLines.push(line);
+                    }
+                });
+                
+                statusOutput.innerHTML = statusLines.map(line => 
+                    `<div class="mb-2">${line}</div>`
+                ).join('');
+                
+                updateBillingOutput(billingLines);
+                
+                results.style.display = 'block';
+            } else {
+                alert('Error processing video: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error uploading video: ' + error.message);
+        } finally {
+            loading.style.display = 'none';
+        }
+    });
+
+    // Format card inputs
+    const cardNumber = document.getElementById('card_number');
+    const expiry = document.getElementById('expiry');
+    const cvv = document.getElementById('cvv');
+    
+    cardNumber.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 16) value = value.slice(0, 16);
+        let formattedValue = '';
+        for (let i = 0; i < value.length; i++) {
+            if (i > 0 && i % 4 === 0) formattedValue += ' ';
+            formattedValue += value[i];
+        }
+        e.target.value = formattedValue;
+    });
+
+    expiry.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 4) value = value.slice(0, 4);
+        if (value.length > 2) {
+            value = value.slice(0, 2) + '/' + value.slice(2);
+        }
+        e.target.value = value;
+    });
+
+    cvv.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 4) value = value.slice(0, 4);
+        e.target.value = value;
+    });
+
+    // Function to show payment modal
+    function showPaymentModal(spotId, amount, duration) {
+        const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        document.getElementById('spot_id').value = spotId;
+        document.getElementById('payAmount').textContent = `₹${amount}`;
+        
+        // Update order summary
+        document.getElementById('orderSummary').innerHTML = `
+            <div class="mb-3">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Parking Spot:</span>
+                    <strong>${spotId}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Duration:</span>
+                    <strong>${duration} seconds</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Amount:</span>
+                    <strong>₹${amount}</strong>
+                </div>
+            </div>
+        `;
+        
+        // Generate QR code
+        document.getElementById('qrcode').innerHTML = '';
+        new QRCode(document.getElementById('qrcode'), {
+            text: JSON.stringify({
+                spotId: spotId,
+                amount: amount,
+                duration: duration
+            }),
+            width: 128,
+            height: 128
+        });
+        
+        modal.show();
+    }
+
+    // Handle payment form submission
+    const paymentForm = document.getElementById('paymentForm');
+    paymentForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        if (!paymentForm.checkValidity()) {
+            e.stopPropagation();
+            paymentForm.classList.add('was-validated');
+            return;
+        }
+
+        const payButton = document.getElementById('payButton');
+        const originalButtonText = payButton.innerHTML;
+        payButton.disabled = true;
+        payButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+
+        try {
+            const response = await fetch('/process-payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    spot_id: document.getElementById('spot_id').value,
+                    card_number: cardNumber.value,
+                    expiry: expiry.value,
+                    cvv: cvv.value,
+                    name: document.getElementById('name').value
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Hide payment modal
+                bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+                
+                // Show success modal with receipt
+                const receipt = result.receipt;
+                document.getElementById('receiptDetails').innerHTML = `
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Transaction Details</h6>
+                            <dl class="row mb-0">
+                                <dt class="col-6">Transaction ID:</dt>
+                                <dd class="col-6">${receipt.transaction_id}</dd>
+                                <dt class="col-6">Spot ID:</dt>
+                                <dd class="col-6">${receipt.spot_id}</dd>
+                                <dt class="col-6">Amount Paid:</dt>
+                                <dd class="col-6">₹${receipt.amount}</dd>
+                                <dt class="col-6">Duration:</dt>
+                                <dd class="col-6">${receipt.duration} seconds</dd>
+                                <dt class="col-6">Payment Time:</dt>
+                                <dd class="col-6">${receipt.payment_time}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                `;
+                
+                // Show success modal
+                const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                successModal.show();
+                
+                // Update the billing output to show paid status
+                const billingItem = document.querySelector(`[data-spot-id="${receipt.spot_id}"]`);
+                if (billingItem) {
+                    billingItem.innerHTML = `
+                        <div class="alert alert-success mb-2">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Payment completed for spot ${receipt.spot_id}
+                        </div>
+                    `;
+                }
+            } else {
+                alert('Payment failed: ' + result.error);
+            }
+        } catch (error) {
+            alert('Error processing payment: ' + error.message);
+        } finally {
+            payButton.disabled = false;
+            payButton.innerHTML = originalButtonText;
+            paymentForm.reset();
+        }
+    });
+
+    // Update billing output to use modal
+    function updateBillingOutput(billingLines) {
+        billingOutput.innerHTML = billingLines.map(line => {
+            const match = line.match(/([a-z]\d+)\s+parked:(\d+)\s+Bill=(\d+)/);
+            if (match) {
+                const [_, spotId, duration, amount] = match;
+                return `
+                    <div class="alert alert-info mb-2 d-flex justify-content-between align-items-center" data-spot-id="${spotId}">
+                        <div>${line}</div>
+                        <button onclick="showPaymentModal('${spotId}', ${amount}, ${duration})" 
+                                class="btn btn-primary btn-sm">
+                            <i class="fas fa-credit-card me-1"></i>Pay Now
+                        </button>
+                    </div>`;
+            }
+            return `<div class="alert alert-info mb-2">${line}</div>`;
+        }).join('');
+    }
+    
+    // Expose showPaymentModal to global scope
+    window.showPaymentModal = showPaymentModal;
+});
+</script>
+{% endblock %}
