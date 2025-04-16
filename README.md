@@ -53,7 +53,7 @@ This project is an AI-powered Smart Parking System that detects available parkin
 👥 Team Members: [P.Kishan, A.Prameela Lakshmi, M.Lohitha]
 
 ## 📄 License
-This project is licensed under the MIT License.
+This project is licensed under the [MIT License](LICENSE).
 
 ## 🌟 Show Your Support
 If you found this project useful, consider giving it a ⭐ on GitHub.
